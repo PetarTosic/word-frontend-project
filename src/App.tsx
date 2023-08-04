@@ -153,7 +153,7 @@ function App(): JSX.Element {
               textAlign: 'center',
             }}
           >
-            {points} POINTS
+            {points === 0 ? 'NO' : points} POINTS
           </Typography>
           <Typography
             sx={{ borderBottom: 1, borderColor: 'red', width: 'fit-content' }}
