@@ -2,75 +2,30 @@ import { useState, useContext } from 'react';
 import './App.css';
 import Stack from '@mui/material/Stack';
 import { Button, TextField, Typography } from '@mui/material';
-import { API } from './shared/api';
 import { useQuery } from '@tanstack/react-query';
 import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
 import RenderWords from './components/RenderWords';
 import WordContext from './storage/WordContext';
+import { useWordChecker } from './hooks/useWordChecker';
 
-type WordObject = {
-  word: string;
-  points: number;
-};
-
-const specialCharRegex = /[^a-zA-Z\s]/;
 
 function App(): JSX.Element {
   const [word, setWord] = useState<string>('');
   const [points, setPoints] = useState<number>(0);
   const [isEnabled, setIsEnabled] = useState<boolean>(false);
   const { loading, error, words, addError, addWord, setLoading } = useContext(WordContext);
+  const { handleCheckWord } = useWordChecker();
 
-
-  const handleCheckWord = async (): Promise<number> => {
-    addError('');
-    setLoading(true); 
-    
-    if (words.some((obj) => obj.word === word) && word) {
-      addError('Word already used!');
-      setWord('');
-      setLoading(false);
-      return 0;
-    }
-
-    if (word.length < 2) {
-      addError('Word must be longer than 2 characters!');
-      setWord('');
-      setLoading(false);  
-      return 0;
-    }
-
-    if (specialCharRegex.test(word)) {
-      addError(`Word can't contain numbers or special characters!`);
-      setWord('');
-      setLoading(false);
-      return 0;
-    }
-
-    const { data: response } = await API.get(`/word?word=${word}`);
-
-    if (!response) {
-      addWord(word, 0);
-      addError('Invalid word!');
-      setWord('');
-      setLoading(false);
-      return 0;
-    }
-
-    setPoints((prevState) => prevState + response);
-    addWord(word, response);
-    setWord('');
-    setLoading(false);
-    return response;
-  };
-
+  
   const { refetch } = useQuery<number>({
     enabled: isEnabled,
     queryKey: ['word'],
-    queryFn: async () => await handleCheckWord(),
-    onSuccess: () => {
+    queryFn: async () => await handleCheckWord(word),
+    onSuccess: (response) => {
       setIsEnabled(false);
+      setPoints((prevState) => prevState + response);
+      setWord('');
     },
   });
 
