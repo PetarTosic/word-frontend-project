@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useContext } from 'react';
 import './App.css';
 import Stack from '@mui/material/Stack';
 import { Button, TextField, Typography } from '@mui/material';
@@ -6,6 +6,8 @@ import { API } from './shared/api';
 import { useQuery } from '@tanstack/react-query';
 import CircularProgress from '@mui/material/CircularProgress';
 import Paper from '@mui/material/Paper';
+import RenderWords from './components/RenderWords';
+import WordContext from './storage/WordContext';
 
 type WordObject = {
   word: string;
@@ -16,45 +18,32 @@ const specialCharRegex = /[^a-zA-Z\s]/;
 
 function App(): JSX.Element {
   const [word, setWord] = useState<string>('');
-  const [error, setError] = useState<string>('');
   const [points, setPoints] = useState<number>(0);
   const [isEnabled, setIsEnabled] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [words, setWords] = useState<WordObject[]>([]);
+  const { loading, error, words, addError, addWord, setLoading } = useContext(WordContext);
 
-  const resetWord = () => {
-    setWord('');
-    setError('');
-  };
 
   const handleCheckWord = async (): Promise<number> => {
-    setError('');
-    setLoading(true);
-
-    if (words.some((obj) => obj.word.includes(word))) {
-      setError('Word already used!');
-      resetWord();
+    addError('');
+    setLoading(true); 
+    
+    if (words.some((obj) => obj.word === word) && word) {
+      addError('Word already used!');
+      setWord('');
       setLoading(false);
       return 0;
     }
 
     if (word.length < 2) {
-      setError('Word must be longer than 2 characters!');
-      resetWord();
-      setLoading(false);
-      return 0;
-    }
-
-    if (!word) {
-      setError('You must enter a word!');
-      resetWord();
-      setLoading(false);
+      addError('Word must be longer than 2 characters!');
+      setWord('');
+      setLoading(false);  
       return 0;
     }
 
     if (specialCharRegex.test(word)) {
-      setError(`Word can't contain numbers or special characters!`);
-      resetWord();
+      addError(`Word can't contain numbers or special characters!`);
+      setWord('');
       setLoading(false);
       return 0;
     }
@@ -62,16 +51,16 @@ function App(): JSX.Element {
     const { data: response } = await API.get(`/word?word=${word}`);
 
     if (!response) {
-      setWords((prevState) => [{ word: word, points: 0 }, ...prevState]);
-      setError('Invalid word!');
-      resetWord();
+      addWord(word, 0);
+      addError('Invalid word!');
+      setWord('');
       setLoading(false);
       return 0;
     }
 
     setPoints((prevState) => prevState + response);
-    setWords((prevState) => [{ word: word, points: response }, ...prevState]);
-    resetWord();
+    addWord(word, response);
+    setWord('');
     setLoading(false);
     return response;
   };
@@ -84,18 +73,6 @@ function App(): JSX.Element {
       setIsEnabled(false);
     },
   });
-
-  const renderWords = (): JSX.Element[] => {
-    return words.slice(0, 10).map((wordObj, id) => (
-      <Typography
-        key={id}
-        sx={{ color: wordObj.points === 0 ? 'red' : 'green' }}
-      >
-        Word <strong>{wordObj.word}</strong> got you{' '}
-        <strong>{wordObj.points}</strong> points!
-      </Typography>
-    ));
-  };
 
   return (
     <Stack
@@ -163,7 +140,7 @@ function App(): JSX.Element {
           </Typography>
         </Stack>
         </Paper>
-        {renderWords()}
+        <RenderWords words={words}/>
       </Stack>
     </Stack>
   );
